@@ -30,16 +30,11 @@ import static exchange.core2.benchmarks.generator.orders.SingleBookOrderGenerato
  */
 public final class OrdersGeneratorSession {
 
-    // TODO cleanup session (extract local args)
-
     public final IOrderBook orderBook;
 
     public final BufferWriter fillCommandsBufferWriter;
     public final BufferWriter benchmarkCommandsBufferWriter;
 
-    public final BufferWriter resultsBufferWriter;
-
-    public final int transactionsNumber;
     public final int targetOrderBookOrdersHalf;
 
     public final long priceDeviation;
@@ -48,8 +43,6 @@ public final class OrdersGeneratorSession {
 
     public final int numUsers;
     public final UnaryOperator<Integer> uidMapper;
-
-    public final int symbol;
 
     public final Random rand;
 
@@ -72,21 +65,11 @@ public final class OrdersGeneratorSession {
     // set to 1 to make price move up and down
     public int priceDirection;
 
-    public boolean initialOrdersPlaced = false;
-
     public long numCompleted = 0;
     public long numRejected = 0;
     public long numReduced = 0;
 
-    public long counterPlaceMarket = 0;
-    public long counterPlaceLimit = 0;
-    public long counterCancel = 0;
-    public long counterMove = 0;
-    public long counterReduce = 0;
-
-    public int seq = 1;
-
-    public Integer filledAtSeq = null;
+    public int orderIdCounter = 1;
 
     // statistics (updated every 256 orders)
     public int lastOrderBookOrdersSizeAsk = 0;
@@ -97,30 +80,28 @@ public final class OrdersGeneratorSession {
 //    public SingleWriterRecorder hdrRecorder = new SingleWriterRecorder(Integer.MAX_VALUE, 2);
 
     public OrdersGeneratorSession(IOrderBook orderBook,
-                                  BufferWriter resultsBufferWriter,
-                                  int transactionsNumber,
                                   int targetOrderBookOrdersHalf,
                                   boolean avalancheIOC,
                                   int numUsers,
                                   UnaryOperator<Integer> uidMapper,
-                                  int symbol,
                                   boolean enableSlidingPrice,
-                                  int seed) {
+                                  int orderIdCounter,
+                                  Random rand) {
+
         this.orderBook = orderBook;
 
         // TODO estimate initial capacity
         this.fillCommandsBufferWriter = new BufferWriter(new ExpandableArrayBuffer(1024), 0);
         this.benchmarkCommandsBufferWriter = new BufferWriter(new ExpandableArrayBuffer(1024), 0);
 
-        this.resultsBufferWriter = resultsBufferWriter;
-
-        this.transactionsNumber = transactionsNumber;
         this.targetOrderBookOrdersHalf = targetOrderBookOrdersHalf;
         this.avalancheIOC = avalancheIOC;
         this.numUsers = numUsers;
         this.uidMapper = uidMapper;
-        this.symbol = symbol;
-        this.rand = new Random(Long.hashCode(symbol * -177277 + seed));
+
+        this.orderIdCounter = orderIdCounter;
+
+        this.rand = rand;
 
         int price = (int) Math.pow(10, 3.3 + rand.nextDouble() * 1.5 + rand.nextDouble() * 1.5);
 

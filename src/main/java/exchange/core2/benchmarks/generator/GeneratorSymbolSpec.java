@@ -59,6 +59,27 @@ public final class GeneratorSymbolSpec implements ISymbolSpecification {
         this.marginSell = marginSell;
     }
 
+    public GeneratorSymbolSpec(int symbolId,
+                               SymbolType symbolType,
+                               int baseCurrency,
+                               int quoteCurrency,
+                               long baseScaleK,
+                               long quoteScaleK,
+                               long takerFee,
+                               long makerFee) {
+
+        this.symbolId = symbolId;
+        this.symbolType = symbolType;
+        this.baseCurrency = baseCurrency;
+        this.quoteCurrency = quoteCurrency;
+        this.baseScaleK = baseScaleK;
+        this.quoteScaleK = quoteScaleK;
+        this.takerFee = takerFee;
+        this.makerFee = makerFee;
+        this.marginBuy = 0L;
+        this.marginSell = 0L;
+    }
+
 
     @Override
     public int getSymbolId() {

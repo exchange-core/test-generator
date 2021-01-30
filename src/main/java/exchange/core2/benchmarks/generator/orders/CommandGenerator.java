@@ -19,6 +19,8 @@ import exchange.core2.orderbook.IOrderBook;
 import exchange.core2.orderbook.OrderAction;
 import exchange.core2.orderbook.util.BufferWriter;
 import exchange.core2.orderbook.util.CommandsEncoder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Iterator;
 import java.util.Map;
@@ -28,42 +30,25 @@ public class CommandGenerator {
 
     public static final double CENTRAL_MOVE_ALPHA = 0.01;
 
+    private static final Logger log = LoggerFactory.getLogger(CommandGenerator.class);
+
 
     public static void generateRandomCommand(OrdersGeneratorSession session, BufferWriter commandBufferWriter) {
 
-        final Random rand = session.rand;
-
-        // TODO move to lastOrderBookOrdersSize writer method
-        final int lackOfOrdersAsk = session.targetOrderBookOrdersHalf - session.lastOrderBookOrdersSizeAsk;
-        final int lackOfOrdersBid = session.targetOrderBookOrdersHalf - session.lastOrderBookOrdersSizeBid;
-        if (!session.initialOrdersPlaced && lackOfOrdersAsk <= 0 && lackOfOrdersBid <= 0) {
-            session.initialOrdersPlaced = true;
-
-            session.counterPlaceMarket = 0;
-            session.counterPlaceLimit = 0;
-            session.counterCancel = 0;
-            session.counterMove = 0;
-            session.counterReduce = 0;
-        }
-
-        final OrderAction action = (rand.nextInt(4) + session.priceDirection >= 2)
+        final OrderAction action = (session.rand.nextInt(4) + session.priceDirection >= 2)
                 ? OrderAction.BID
                 : OrderAction.ASK;
 
-        final int lackOfOrders = (action == OrderAction.ASK) ? lackOfOrdersAsk : lackOfOrdersBid;
+        final int lackOfOrders = (action == OrderAction.ASK)
+                ? session.targetOrderBookOrdersHalf - session.lastOrderBookOrdersSizeAsk
+                : session.targetOrderBookOrdersHalf - session.lastOrderBookOrdersSizeBid;
 
-        final boolean requireFastFill = session.filledAtSeq == null || lackOfOrders > session.lackOrOrdersFastFillThreshold;
-
+        final boolean requireFastFill = lackOfOrders > session.lackOrOrdersFastFillThreshold;
         final boolean growOrders = lackOfOrders > 0;
 
-        //log.debug("{} growOrders={} requireFastFill={} lackOfOrders({})={}", session.seq, growOrders, requireFastFill, action, lackOfOrders);
+        // log.debug("{} growOrders={} requireFastFill={} lackOfOrders({})={}", session.orderIdCounter, growOrders, requireFastFill, action, lackOfOrders);
 
-        if (session.filledAtSeq == null && !growOrders) {
-            session.filledAtSeq = session.seq;
-            //log.debug("Symbol {} filled at {} (targetOb={} trans={})", session.symbol, session.seq, session.targetOrderBookOrdersHalf, session.transactionsNumber);
-        }
-
-        final int q = rand.nextInt(growOrders
+        final int q = session.rand.nextInt(growOrders
                 ? (requireFastFill ? 2 : 10)
                 : 40);
 
@@ -79,9 +64,9 @@ public class CommandGenerator {
 
         // TODO improve random picking performance (custom hashset implementation?)
 //        long t = System.nanoTime();
-        int size = Math.min(session.orderUids.size(), 512);
+        final int size = Math.min(session.orderUids.size(), 512);
 
-        int randPos = rand.nextInt(size);
+        final int randPos = session.rand.nextInt(size);
         Iterator<Map.Entry<Integer, Integer>> iterator = session.orderUids.entrySet().iterator();
 
         Map.Entry<Integer, Integer> rec = iterator.next();
@@ -89,49 +74,45 @@ public class CommandGenerator {
             rec = iterator.next();
         }
 //        session.hdrRecorder.recordValue(Math.min(System.nanoTime() - t, Integer.MAX_VALUE));
-        int orderId = rec.getKey();
+        final int orderId = rec.getKey();
 
-        int uid = rec.getValue();
+        final int uid = rec.getValue();
         if (uid == 0) {
             throw new IllegalStateException();
         }
 
         if (q == 2) {
             session.orderUids.remove(orderId);
-            session.counterCancel++;
             commandBufferWriter.appendByte(IOrderBook.COMMAND_CANCEL_ORDER);
             CommandsEncoder.cancel(commandBufferWriter, orderId, uid);
 
         } else if (q == 3) {
-            session.counterReduce++;
 
-            int prevSize = session.orderSizes.get(orderId);
-            int reduceBy = session.rand.nextInt(prevSize) + 1;
+            final int prevSize = session.orderSizes.get(orderId);
+            final int reduceBy = session.rand.nextInt(prevSize) + 1;
             commandBufferWriter.appendByte(IOrderBook.COMMAND_REDUCE_ORDER);
             CommandsEncoder.reduce(commandBufferWriter, orderId, uid, reduceBy);
 
         } else {
-            int prevPrice = session.orderPrices.get(orderId);
+            final int prevPrice = session.orderPrices.get(orderId);
             if (prevPrice == 0) {
                 throw new IllegalStateException();
             }
 
-            double priceMove = (session.lastTradePrice - prevPrice) * CENTRAL_MOVE_ALPHA;
+            final double priceMove = (session.lastTradePrice - prevPrice) * CENTRAL_MOVE_ALPHA;
             int priceMoveRounded;
             if (prevPrice > session.lastTradePrice) {
                 priceMoveRounded = (int) Math.floor(priceMove);
             } else if (prevPrice < session.lastTradePrice) {
                 priceMoveRounded = (int) Math.ceil(priceMove);
             } else {
-                priceMoveRounded = rand.nextInt(2) * 2 - 1;
+                priceMoveRounded = session.rand.nextInt(2) * 2 - 1;
             }
 
             final int newPrice = Math.min(prevPrice + priceMoveRounded, (int) session.maxPrice);
             // todo add min limit
 
             // log.debug("session.seq={} orderId={} size={} p={}", session.seq, orderId, session.actualOrders.size(), priceMoveRounded);
-
-            session.counterMove++;
 
             session.orderPrices.put(orderId, newPrice);
 
@@ -141,13 +122,15 @@ public class CommandGenerator {
         }
     }
 
-    public static void generateRandomGtcOrder(OrdersGeneratorSession session, final BufferWriter commandBufferWriter) {
+    public static void generateRandomGtcOrder(final OrdersGeneratorSession session,
+                                              final BufferWriter commandBufferWriter) {
 
         final Random rand = session.rand;
 
         final OrderAction action = (rand.nextInt(4) + session.priceDirection >= 2) ? OrderAction.BID : OrderAction.ASK;
-        final int uid = session.uidMapper.apply(rand.nextInt(session.numUsers));
-        final int newOrderId = session.seq;
+        final int uid = randomUid(session, rand);
+
+        final int newOrderId = session.orderIdCounter++;
 
         final int dev = 1 + (int) (Math.pow(rand.nextDouble(), 2) * session.priceDeviation);
 
@@ -170,8 +153,6 @@ public class CommandGenerator {
         session.orderPrices.put(newOrderId, price);
         session.orderSizes.put(newOrderId, size);
         session.orderUids.put(newOrderId, uid);
-        session.counterPlaceLimit++;
-        session.seq++;
 
         final int userCookie = rand.nextInt();
 
@@ -189,15 +170,16 @@ public class CommandGenerator {
                 userCookie);
     }
 
-    private static void generateRandomInstantOrder(OrdersGeneratorSession session, BufferWriter commandBufferWriter) {
+    public static void generateRandomInstantOrder(final OrdersGeneratorSession session,
+                                                  final BufferWriter commandBufferWriter) {
 
         final Random rand = session.rand;
 
         final OrderAction action = (rand.nextInt(4) + session.priceDirection >= 2) ? OrderAction.BID : OrderAction.ASK;
 
-        final int uid = session.uidMapper.apply(rand.nextInt(session.numUsers));
+        final int uid = randomUid(session, rand);
 
-        final int newOrderId = session.seq;
+        final int newOrderId = session.orderIdCounter++;
 
         final long priceLimit = action == OrderAction.BID ? session.maxPrice : session.minPrice;
 
@@ -244,10 +226,7 @@ public class CommandGenerator {
             size = 1 + rand.nextInt(6) * rand.nextInt(6) * rand.nextInt(6);
         }
 
-
         session.orderSizes.put(newOrderId, (int) size);
-        session.counterPlaceMarket++;
-        session.seq++;
 
         final int userCookie = rand.nextInt();
 
@@ -265,5 +244,13 @@ public class CommandGenerator {
                 userCookie);
     }
 
+    private static int randomUid(OrdersGeneratorSession session, Random rand) {
 
+        final int uid = session.uidMapper.apply(rand.nextInt(session.numUsers));
+        if (uid == 0) {
+            throw new IllegalArgumentException("uid can not be 0, check uid mapping use UID_PLAIN_MAPPER");
+        } else {
+            return uid;
+        }
+    }
 }

@@ -17,6 +17,7 @@ package exchange.core2.benchmarks.generator.orders;
 
 import exchange.core2.benchmarks.generator.GeneratorSymbolSpec;
 import exchange.core2.benchmarks.generator.clients.ClientsCurrencyAccountsGenerator;
+import exchange.core2.benchmarks.generator.util.AsyncProgressLogger;
 import exchange.core2.benchmarks.generator.util.ExecutionTime;
 import exchange.core2.benchmarks.generator.util.RandomUtils;
 import exchange.core2.orderbook.util.BufferWriter;
@@ -31,16 +32,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.LongAdder;
 import java.util.function.LongConsumer;
-import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
-
 public final class MultiSymbolOrdersGenerator {
-
-    public static final UnaryOperator<Integer> UID_PLAIN_MAPPER = i -> i + 1;
 
     private static final Logger log = LoggerFactory.getLogger(MultiSymbolOrdersGenerator.class);
 
@@ -64,9 +59,13 @@ public final class MultiSymbolOrdersGenerator {
 
             final double[] distribution = RandomUtils.weightedDistribution(coreSymbolSpecifications.size(), rand);
             int quotaLeft = totalTransactionsNumber;
+            int orderIdShift = 1;
             final Map<Integer, CompletableFuture<GenResult>> futures = new HashMap<>();
 
-            final LongConsumer sharedProgressLogger = createAsyncProgressLogger(totalTransactionsNumber + targetOrderBookOrdersTotal);
+            final LongConsumer sharedProgressLogger = AsyncProgressLogger.createLoggingConsumer(
+                    totalTransactionsNumber + targetOrderBookOrdersTotal,
+                    message -> log.debug("Generating commands progress: {} ...", message),
+                    5);
 
             for (int i = coreSymbolSpecifications.size() - 1; i >= 0; i--) {
                 final GeneratorSymbolSpec spec = coreSymbolSpecifications.get(i);
@@ -75,21 +74,25 @@ public final class MultiSymbolOrdersGenerator {
 
                 quotaLeft -= commandsNum;
 
+                // maintaining unique orderId
+                final int orderIdCounter = orderIdShift;
+                orderIdShift += (commandsNum + orderBookSizeTarget);
+
 //                log.debug("{}. Generating symbol {} : commands={} orderBookSizeTarget={} (quotaLeft={})", i, spec.symbolId, commandsNum, orderBookSizeTarget, quotaLeft);
                 futures.put(spec.getSymbolId(), CompletableFuture.supplyAsync(() -> {
+
                     final int[] uidsAvailableForSymbol = ClientsCurrencyAccountsGenerator.createClientsListForSymbol(usersAccounts, spec, commandsNum);
-                    final int numUsers = uidsAvailableForSymbol.length;
-                    final UnaryOperator<Integer> uidMapper = idx -> uidsAvailableForSymbol[idx];
 
                     return SingleBookOrderGenerator.generateCommands(
                             commandsNum,
                             orderBookSizeTarget,
-                            numUsers,
-                            uidMapper,
+                            uidsAvailableForSymbol.length,
+                            idx -> uidsAvailableForSymbol[idx],
                             spec,
                             false,
                             config.isAvalancheIOC(),
                             sharedProgressLogger,
+                            orderIdCounter,
                             randomSeed);
                 }));
             }
@@ -140,26 +143,6 @@ public final class MultiSymbolOrdersGenerator {
                 mergedCommandsFill,
                 mergedCommandsBenchmark,
                 benchmarkCmdSize);
-    }
-
-
-    public static LongConsumer createAsyncProgressLogger(int totalTransactionsNumber) {
-        final long progressLogInterval = 5_000_000_000L; // 5 sec
-        final AtomicLong nextUpdateTime = new AtomicLong(System.nanoTime() + progressLogInterval);
-        final LongAdder progress = new LongAdder();
-        return transactions -> {
-            progress.add(transactions);
-            final long whenLogNext = nextUpdateTime.get();
-            final long timeNow = System.nanoTime();
-            if (timeNow > whenLogNext) {
-                if (nextUpdateTime.compareAndSet(whenLogNext, timeNow + progressLogInterval)) {
-                    // whichever thread won - it should print progress
-                    final long done = progress.sum();
-                    log.debug(String.format("Generating commands progress: %.01f%% done (%d of %d)...",
-                            done * 100.0 / totalTransactionsNumber, done, totalTransactionsNumber));
-                }
-            }
-        };
     }
 
 //

@@ -27,7 +27,10 @@ import exchange.core2.orderbook.util.CommandsEncoder;
 import exchange.core2.orderbook.util.ResponseDecoder;
 import org.agrona.ExpandableArrayBuffer;
 import org.agrona.MutableDirectBuffer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.util.Random;
 import java.util.function.LongConsumer;
 import java.util.function.UnaryOperator;
 
@@ -35,7 +38,11 @@ import java.util.function.UnaryOperator;
 public class SingleBookOrderGenerator {
 
 
+    private static final Logger log = LoggerFactory.getLogger(SingleBookOrderGenerator.class);
+
+
     public static final int CHECK_ORDERBOOK_STAT_EVERY_NTH_COMMAND = 512;
+    public static final UnaryOperator<Integer> UID_PLAIN_MAPPER = i -> i + 1;
 
     public static GenResult generateCommands(
             final int benchmarkTransactionsNumber,
@@ -46,30 +53,26 @@ public class SingleBookOrderGenerator {
             final boolean enableSlidingPrice,
             final boolean avalancheIOC,
             final LongConsumer asyncProgressConsumer,
+            final int orderIdCounter,
             final int seed) {
 
 
-        final ExpandableArrayBuffer resultsBuffer = new ExpandableArrayBuffer();
-        final BufferWriter resultsBufferWriter = new BufferWriter(resultsBuffer, 0);
+        final BufferWriter resultsBufferWriter = new BufferWriter(new ExpandableArrayBuffer(), 0);
 
         // TODO specify symbol type (for testing exchange-bid-move rejects)
-        final IOrderBook<ISymbolSpecification> orderBook = new OrderBookNaiveImpl<ISymbolSpecification>(spec, false, resultsBufferWriter);
+        final IOrderBook<ISymbolSpecification> orderBook = new OrderBookNaiveImpl<>(spec, false, resultsBufferWriter);
+
+        final Random rand = new Random(Long.hashCode(spec.getSymbolId() * -177277 + seed));
 
         final OrdersGeneratorSession session = new OrdersGeneratorSession(
                 orderBook,
-                resultsBufferWriter,
-                benchmarkTransactionsNumber,
-                targetOrderBookOrders / 2, // asks + bids
+                targetOrderBookOrders,
                 avalancheIOC,
                 numUsers,
                 uidMapper,
-                spec.getSymbolId(),
                 enableSlidingPrice,
-                seed);
-
-
-//        final List<byte[]> commandsFill = new ArrayList<>(targetOrderBookOrders);
-//        final List<byte[]> commandsBenchmark = new ArrayList<>(benchmarkTransactionsNumber);
+                orderIdCounter,
+                rand);
 
         int nextSizeCheck = Math.min(CHECK_ORDERBOOK_STAT_EVERY_NTH_COMMAND, targetOrderBookOrders + 1);
 
@@ -77,24 +80,30 @@ public class SingleBookOrderGenerator {
 
         int lastProgressReported = 0;
 
-
-        //TODO fillInProgress
         for (int i = 0; i < totalCommandsNumber; i++) {
 
+            final boolean fillStage = i < targetOrderBookOrders;
 
+
+            final int lastWriterPosition;
             final BufferWriter commandBufferWriter;
-            if (i < targetOrderBookOrders) {
-                commandBufferWriter = session.benchmarkCommandsBufferWriter;
+            if (fillStage) {
+                commandBufferWriter = session.fillCommandsBufferWriter;
+                lastWriterPosition = commandBufferWriter.getWriterPosition();
                 CommandGenerator.generateRandomGtcOrder(session, commandBufferWriter);
             } else {
-                commandBufferWriter = session.fillCommandsBufferWriter;
+                commandBufferWriter = session.benchmarkCommandsBufferWriter;
+                lastWriterPosition = commandBufferWriter.getWriterPosition();
                 CommandGenerator.generateRandomCommand(session, commandBufferWriter);
             }
 
-            final int lastWriterPosition = commandBufferWriter.getWriterPosition();
+            // log.debug("lastWriterPosition={}", lastWriterPosition);
+            // log.debug("commandBufferWriter\n{}", commandBufferWriter.prettyHexDump());
 
             final MutableDirectBuffer commandsBuffer = commandBufferWriter.getBuffer();
             final byte cmdCode = commandsBuffer.getByte(lastWriterPosition);
+
+            // log.debug("cmdCode:{}", cmdCode);
 
             switch (cmdCode) {
                 case IOrderBook.COMMAND_PLACE_ORDER:
@@ -120,7 +129,7 @@ public class SingleBookOrderGenerator {
             // handler response from order book
 
             final OrderBookResponse orderBookResponse = ResponseDecoder.readResult(
-                    resultsBuffer,
+                    resultsBufferWriter.getBuffer(),
                     resultsBufferWriter.getWriterPosition());
             resultsBufferWriter.reset();
 
@@ -128,14 +137,17 @@ public class SingleBookOrderGenerator {
                 throw new IllegalStateException("Unsuccessful result code: " + orderBookResponse.toString());
             }
 
-            matcherTradeEventEventHandler(session, (CommandResponse) orderBookResponse);
+            matcherTradeEventEventHandler(
+                    session,
+                    (CommandResponse) orderBookResponse,
+                    () -> updateOrderBookSizeStat(session, orderBook, resultsBufferWriter, fillStage));
 
 
             if (i >= nextSizeCheck) {
 
                 nextSizeCheck += Math.min(CHECK_ORDERBOOK_STAT_EVERY_NTH_COMMAND, targetOrderBookOrders + 1);
 
-                updateOrderBookSizeStat(session);
+                updateOrderBookSizeStat(session, orderBook, resultsBufferWriter, fillStage);
             }
 
             if (i % 10000 == 9999) {
@@ -146,12 +158,7 @@ public class SingleBookOrderGenerator {
 
         asyncProgressConsumer.accept(totalCommandsNumber - lastProgressReported);
 
-        final QueryResponseL2Data responseL2Data = updateOrderBookSizeStat(session);
-
-
-//        if (commandsFill == null) {
-//            throw new RuntimeException("Unable to fill order book with orders");
-//        }
+        final QueryResponseL2Data responseL2Data = updateOrderBookSizeStat(session, orderBook, resultsBufferWriter, false);
 
         return new GenResult(
                 responseL2Data,
@@ -162,13 +169,16 @@ public class SingleBookOrderGenerator {
                 benchmarkTransactionsNumber);
     }
 
-    private static QueryResponseL2Data updateOrderBookSizeStat(OrdersGeneratorSession session) {
+    private static QueryResponseL2Data updateOrderBookSizeStat(final OrdersGeneratorSession session,
+                                                               final IOrderBook<ISymbolSpecification> orderBook,
+                                                               final BufferWriter resultsBufferWriter,
+                                                               final boolean fillStage) {
 
-        session.orderBook.sendL2Snapshot(CommandsEncoder.L2DataQuery(Integer.MAX_VALUE), 0);
+        orderBook.sendL2Snapshot(CommandsEncoder.L2DataQuery(Integer.MAX_VALUE), 0);
         final QueryResponseL2Data responseL2Data = (QueryResponseL2Data) ResponseDecoder.readResult(
-                session.resultsBufferWriter.getBuffer(),
-                session.resultsBufferWriter.getWriterPosition());
-        session.resultsBufferWriter.reset();
+                resultsBufferWriter.getBuffer(),
+                resultsBufferWriter.getWriterPosition());
+        resultsBufferWriter.reset();
 
         // TODO move reduction into QueryResponseL2Data
         final int ordersNumAsk = responseL2Data.getAsks().stream().mapToInt(QueryResponseL2Data.L2Record::getOrders).sum();
@@ -186,7 +196,8 @@ public class SingleBookOrderGenerator {
             session.lastTotalVolumeBid = responseL2Data.getBids().stream().mapToLong(QueryResponseL2Data.L2Record::getVolume).sum();
         }
 
-        if (session.initialOrdersPlaced) {
+        // record stat snapshots
+        if (!fillStage) {
             session.orderBookSizeAskStat.add(responseL2Data.getAsks().size());
             session.orderBookSizeBidStat.add(responseL2Data.getBids().size());
             session.orderBookNumOrdersAskStat.add(ordersNumAsk);
@@ -197,7 +208,8 @@ public class SingleBookOrderGenerator {
     }
 
     private static void matcherTradeEventEventHandler(final OrdersGeneratorSession session,
-                                                      final CommandResponse commandResponse) {
+                                                      final CommandResponse commandResponse,
+                                                      final Runnable updateOrderBookSizeStat) {
 
         final int orderId = (int) commandResponse.getOrderId();
 
@@ -249,7 +261,7 @@ public class SingleBookOrderGenerator {
                 // treat reduce on placing as a rejection
                 session.numRejected++;
                 // force updating order book stat to push generator to issue more limit orders
-                updateOrderBookSizeStat(session);
+                updateOrderBookSizeStat.run();
             } else {
                 session.numReduced++;
             }
