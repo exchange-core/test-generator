@@ -19,10 +19,8 @@ import exchange.core2.benchmarks.generator.GeneratorSymbolSpec;
 import exchange.core2.benchmarks.generator.clients.ClientsCurrencyAccountsGenerator;
 import exchange.core2.benchmarks.generator.util.AsyncProgressLogger;
 import exchange.core2.benchmarks.generator.util.ExecutionTime;
-import exchange.core2.benchmarks.generator.util.RandomUtils;
 import exchange.core2.orderbook.util.BufferReader;
 import org.apache.commons.math3.random.JDKRandomGenerator;
-import org.apache.commons.math3.random.RandomGenerator;
 import org.apache.commons.math3.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,19 +44,23 @@ public final class MultiSymbolOrdersGenerator {
 
     public static MultiSymbolGenResult generateMultipleSymbols(final OrdersGeneratorConfig config) {
 
-        final List<GeneratorSymbolSpec> coreSymbolSpecifications = config.getCoreSymbolSpecifications();
+        final List<Pair<GeneratorSymbolSpec, Double>> symbolSpecs = config.getCoreSymbolSpecifications();
         final int totalTransactionsNumber = config.getTotalTransactionsNumber();
         final List<BitSet> usersAccounts = config.getUsersAccounts();
         final int targetOrderBookOrdersTotal = config.getTargetOrderBookOrdersTotal();
 
         final int randomSeed = config.getSeed();
-        final RandomGenerator rand = new JDKRandomGenerator(randomSeed);
 
         final Map<Integer, GenResult> genResultsMap = new HashMap<>();
 
         try (ExecutionTime ignore = new ExecutionTime(t -> log.debug("All test commands generated in {}", t))) {
 
-            final double[] distribution = RandomUtils.weightedDistribution(coreSymbolSpecifications.size(), rand);
+            if (Math.abs(symbolSpecs.stream().mapToDouble(Pair::getSecond).sum() - 1.0) > 0.000001) {
+                throw new IllegalArgumentException("Symbol spec weights should be normalized");
+            }
+
+            final double linearWeightK = 1.0 / symbolSpecs.size();
+
             int quotaLeft = totalTransactionsNumber;
             int orderIdShift = 1;
             final Map<Integer, CompletableFuture<GenResult>> futures = new HashMap<>();
@@ -68,25 +70,14 @@ public final class MultiSymbolOrdersGenerator {
                     message -> log.debug("Generating commands progress: {} ...", message),
                     5);
 
-//            final Map<Pair<Integer, Integer>, Double> currencyWeights = new HashMap<>();
-//            for (int i = 0; i < coreSymbolSpecifications.size(); i++) {
-//                final double w = distribution[i];
-//                final GeneratorSymbolSpec spec = coreSymbolSpecifications.get(i);
-//                currencyWeights.merge(
-//                        Pair.create(spec.getBaseCurrency(), spec.getQuoteCurrency()),
-//                        w,
-//                        Double::sum);
-//            }
-//
-//            log.debug("weitghs: {}", currencyWeights.values().stream().mapToDouble(a -> a).summaryStatistics());
+            for (int i = symbolSpecs.size() - 1; i >= 0; i--) {
 
-            //currencyWeights.forEach((c, w) -> log.debug("cur:{} w:{}", c, w));
+                final Pair<GeneratorSymbolSpec, Double> wspec = symbolSpecs.get(i);
+                final double weight = wspec.getSecond();
+                final int commandsNum = (i != 0) ? (int) Math.round(totalTransactionsNumber * weight) : Math.max(quotaLeft, 1);
 
-
-            for (int i = coreSymbolSpecifications.size() - 1; i >= 0; i--) {
-                final GeneratorSymbolSpec spec = coreSymbolSpecifications.get(i);
-                final int orderBookSizeTarget = (int) Math.round(targetOrderBookOrdersTotal * distribution[i]);
-                final int commandsNum = (i != 0) ? (int) Math.round(totalTransactionsNumber * distribution[i]) : Math.max(quotaLeft, 1);
+                // linearizing order book GTC orders distribution a bit (simulate market makers)
+                final int orderBookSizeTarget = (int) Math.round(targetOrderBookOrdersTotal * (weight + linearWeightK) * 0.5);
 
                 quotaLeft -= commandsNum;
 
@@ -94,10 +85,11 @@ public final class MultiSymbolOrdersGenerator {
                 final int orderIdCounter = orderIdShift;
                 orderIdShift += (commandsNum + orderBookSizeTarget);
 
-                //log.debug("{}. Generating symbol {} : commands={} orderBookSizeTarget={} (quotaLeft={})", i, spec.getSymbolId(), commandsNum, orderBookSizeTarget, quotaLeft);
+                final GeneratorSymbolSpec spec = wspec.getFirst();
+
+                log.debug("{}. Generating symbol {} : commands={} orderBookSizeTarget={} (quotaLeft={})", i, spec.getSymbolId(), commandsNum, orderBookSizeTarget, quotaLeft);
 
                 //log.debug("{}. {} b={} q={}", i, spec.getSymbolId(), spec.getBaseCurrency(), spec.getQuoteCurrency());
-
 
                 futures.put(spec.getSymbolId(), CompletableFuture.supplyAsync(() -> {
 

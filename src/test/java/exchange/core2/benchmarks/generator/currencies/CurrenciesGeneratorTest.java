@@ -11,12 +11,12 @@ public class CurrenciesGeneratorTest {
     private static final Logger log = LoggerFactory.getLogger(CurrenciesGeneratorTest.class);
 
     @Test
-    public void randomSymbols() {
+    public void test() {
 
 
-        Map<Integer, Double> integerDoubleMap = CurrenciesGenerator.randomSymbols(100, 600, 1);
+        Map<Integer, Double> currencies = CurrenciesGenerator.randomCurrencies(100, 600, 1);
 
-        integerDoubleMap.forEach((k, v) -> log.debug("{}: {}", k, v));
+        currencies.forEach((k, v) -> log.debug("{}: {}", k, v));
 
     }
 }

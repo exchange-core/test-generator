@@ -1,14 +1,15 @@
 package exchange.core2.benchmarks.generator.symbols;
 
 import exchange.core2.benchmarks.generator.GeneratorSymbolSpec;
+import exchange.core2.benchmarks.generator.currencies.CurrenciesGenerator;
+import org.apache.commons.math3.util.Pair;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.EnumSet;
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
+import java.util.Map;
 
 public class SymbolsGeneratorTest {
 
@@ -18,9 +19,11 @@ public class SymbolsGeneratorTest {
     @Test
     public void test() {
 
-        List<Integer> currencies = IntStream.rangeClosed(1, 20).boxed().collect(Collectors.toList());
+        Map<Integer, Double> currencies = CurrenciesGenerator.randomCurrencies(20, 100, 1);
 
-        List<GeneratorSymbolSpec> specs = SymbolsGenerator.generateRandomSymbols(
+        currencies.forEach((k, v) -> log.debug("{}: {}", k, v));
+
+        List<Pair<GeneratorSymbolSpec, Double>> specs = SymbolsGenerator.generateRandomSymbols(
                 10_000,
                 currencies,
                 EnumSet.allOf(GeneratorSymbolSpec.SymbolType.class),

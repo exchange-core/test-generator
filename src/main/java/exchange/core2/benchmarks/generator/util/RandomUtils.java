@@ -25,7 +25,7 @@ import java.util.stream.DoubleStream;
 
 public class RandomUtils {
 
-    public static double[] weightedDistribution(final int size, final RandomGenerator rand) {
+    public static double[] paretoDistribution(final int size, final RandomGenerator rand) {
         final RealDistribution paretoDistribution = new ParetoDistribution(rand, 0.001, 1.5);
         final double[] paretoRaw = DoubleStream.generate(paretoDistribution::sample).limit(size).toArray();
 

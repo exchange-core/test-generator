@@ -17,13 +17,17 @@ package exchange.core2.benchmarks.generator.clients;
 
 import exchange.core2.benchmarks.generator.GeneratorSymbolSpec;
 import exchange.core2.benchmarks.generator.util.ExecutionTime;
+import org.apache.commons.math3.distribution.EnumeratedDistribution;
 import org.apache.commons.math3.distribution.ParetoDistribution;
 import org.apache.commons.math3.distribution.RealDistribution;
 import org.apache.commons.math3.random.JDKRandomGenerator;
+import org.apache.commons.math3.random.RandomGenerator;
+import org.apache.commons.math3.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public final class ClientsCurrencyAccountsGenerator {
 
@@ -35,35 +39,49 @@ public final class ClientsCurrencyAccountsGenerator {
      * <p>
      * In average each client will have account for 4 symbols (between 1 and currencies.size)
      * uid is reserved, so first entry is always empty
+     * <p>
+     * TODO use currencies indexes everywhere (as more friendly to bitsets)
      *
      * @param accountsToCreate
-     * @param currencies
+     * @param currenciesWeights
      * @return n + 1 uid records with allowed currencies
      */
-    public static List<BitSet> generateClients(final int accountsToCreate, Collection<Integer> currencies, int seed) {
+    public static List<BitSet> generateClients(final int accountsToCreate,
+                                               final Map<Integer, Double> currenciesWeights,
+                                               int seed) {
 
-        log.debug("Generating clients with {} accounts ({} currencies)...", accountsToCreate, currencies.size());
+        log.debug("Generating clients with {} accounts ({} currencies)...", accountsToCreate, currenciesWeights.size());
 
         final ExecutionTime executionTime = new ExecutionTime();
         final List<BitSet> result = new ArrayList<>();
         result.add(new BitSet()); // uid=0 no accounts
 
-        final Random rand = new Random(seed);
+        final RandomGenerator rng = new JDKRandomGenerator(seed);
 
         final RealDistribution paretoDistribution = new ParetoDistribution(new JDKRandomGenerator(0), 1, 1.5);
-        final int[] currencyCodes = currencies.stream().mapToInt(i -> i).toArray();
+
+        final int[] allCurrencies = currenciesWeights.keySet().stream().mapToInt(a -> a).toArray();
+
+        // prepare distribution for currencies
+        final List<Pair<Integer, Double>> currencyWeightPairs = currenciesWeights.entrySet().stream()
+                .map(e -> Pair.create(e.getKey(), e.getValue()))
+                .collect(Collectors.toList());
+
+        final EnumeratedDistribution<Integer> currenciesDistribution = new EnumeratedDistribution<>(rng, currencyWeightPairs);
+
+        // prepare reversed distribution for multi-currencies accounts (just an optimization)
+        final List<Pair<Integer, Double>> currencyWeightPairsRev = currencyWeightPairs.stream()
+                .map(p -> Pair.create(p.getFirst(), 1.0 / p.getSecond()))
+                .collect(Collectors.toList());
+
+        final EnumeratedDistribution<Integer> currenciesDistributionRev = new EnumeratedDistribution<>(rng, currencyWeightPairsRev);
 
         int totalAccountsQuota = accountsToCreate;
         do {
-            // TODO prefer some currencies more
-            final int accountsToOpen = Math.min(Math.min(1 + (int) paretoDistribution.sample(), currencyCodes.length), totalAccountsQuota);
-            final BitSet bitSet = new BitSet();
-            do {
-                final int currencyCode = currencyCodes[rand.nextInt(currencyCodes.length)];
-                bitSet.set(currencyCode);
-            } while (bitSet.cardinality() != accountsToOpen);
 
-            totalAccountsQuota -= accountsToOpen;
+            final BitSet bitSet = generateClientAccounts(allCurrencies, paretoDistribution, currenciesDistribution, currenciesDistributionRev);
+
+            totalAccountsQuota -= bitSet.cardinality();
             result.add(bitSet);
 
 //            log.debug("{}", bitSet);
@@ -71,9 +89,41 @@ public final class ClientsCurrencyAccountsGenerator {
         } while (totalAccountsQuota > 0);
 
         log.debug("Generated {} clients with {} accounts up to {} different currencies in {}",
-                result.size(), accountsToCreate, currencies.size(), executionTime.getTimeFormatted());
+                result.size(), accountsToCreate, currenciesWeights.size(), executionTime.getTimeFormatted());
 
         return result;
+    }
+
+    private static BitSet generateClientAccounts(int[] allCurrencies,
+                                                 RealDistribution accountsNumDistribution,
+                                                 EnumeratedDistribution<Integer> currenciesDistribution,
+                                                 EnumeratedDistribution<Integer> currenciesDistributionRev) {
+
+        final int accountsToOpen = Math.min(
+                1 + (int) accountsNumDistribution.sample(),
+                allCurrencies.length);
+
+        if (accountsToOpen < allCurrencies.length / 2) {
+            final BitSet bitSet = new BitSet();
+
+            // at least 1 account open.
+            do {
+                final int currencyCode = currenciesDistribution.sample();
+                bitSet.set(currencyCode);
+            } while (bitSet.cardinality() != accountsToOpen);
+            return bitSet;
+
+        } else {
+
+            final BitSet bitSet = new BitSet();
+            Arrays.stream(allCurrencies).forEach(bitSet::set);
+
+            while (bitSet.cardinality() != accountsToOpen) {
+                final int currencyCode = currenciesDistributionRev.sample();
+                bitSet.clear(currencyCode);
+            }
+            return bitSet;
+        }
     }
 
     public static int[] createClientsListForSymbol(final List<BitSet> clients2currencies,
@@ -104,7 +154,7 @@ public final class ClientsCurrencyAccountsGenerator {
             }
             //uid = 1 + rand.nextInt(clients2currencies.size() - 1);
 
-            if(c++ > clients2currencies.size()){
+            if (c++ > clients2currencies.size()) {
                 // tried every account, can stop
                 // log.warn("WRAP");
                 break;

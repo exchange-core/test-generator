@@ -16,6 +16,7 @@
 package exchange.core2.benchmarks.generator.orders;
 
 import exchange.core2.benchmarks.generator.GeneratorSymbolSpec;
+import org.apache.commons.math3.util.Pair;
 
 import java.util.BitSet;
 import java.util.List;
@@ -23,7 +24,7 @@ import java.util.function.Function;
 
 public final class OrdersGeneratorConfig {
 
-    private final List<GeneratorSymbolSpec> coreSymbolSpecifications;
+    private final List<Pair<GeneratorSymbolSpec, Double>> coreSymbolSpecifications;
     private final int totalTransactionsNumber;
     private final List<BitSet> usersAccounts;
     private final int targetOrderBookOrdersTotal;
@@ -47,7 +48,7 @@ public final class OrdersGeneratorConfig {
         private final Function<OrdersGeneratorConfig, Integer> calculateReadySeqFunc;
     }
 
-    public OrdersGeneratorConfig(List<GeneratorSymbolSpec> coreSymbolSpecifications,
+    public OrdersGeneratorConfig(List<Pair<GeneratorSymbolSpec, Double>> coreSymbolSpecifications,
                                  int totalTransactionsNumber,
                                  List<BitSet> usersAccounts,
                                  int targetOrderBookOrdersTotal,
@@ -64,7 +65,7 @@ public final class OrdersGeneratorConfig {
         this.preFillMode = preFillMode;
     }
 
-    public List<GeneratorSymbolSpec> getCoreSymbolSpecifications() {
+    public List<Pair<GeneratorSymbolSpec, Double>> getCoreSymbolSpecifications() {
         return coreSymbolSpecifications;
     }
 

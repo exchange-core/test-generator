@@ -1,17 +1,13 @@
 package exchange.core2.benchmarks.generator.clients;
 
 import exchange.core2.benchmarks.generator.GeneratorSymbolSpec;
+import exchange.core2.benchmarks.generator.currencies.CurrenciesGenerator;
 import org.eclipse.collections.impl.map.mutable.primitive.IntIntHashMap;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Arrays;
-import java.util.BitSet;
-import java.util.IntSummaryStatistics;
-import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
+import java.util.*;
 
 public class ClientsCurrencyAccountsGeneratorTest {
 
@@ -20,24 +16,24 @@ public class ClientsCurrencyAccountsGeneratorTest {
     @Test
     public void shouldGenerateUsers() {
 
-        final List<Integer> allowedCurrencies = IntStream.rangeClosed(1, 20).boxed().collect(Collectors.toList());
+        final Map<Integer, Double> currencies = CurrenciesGenerator.randomCurrencies(20, 1, 1);
+        currencies.forEach((k, v) -> log.debug("{}: {}", k, v));
 
-        final List<BitSet> accounts = ClientsCurrencyAccountsGenerator.generateClients(100, allowedCurrencies, 1);
-
-        accounts.forEach(currencies -> log.debug("{}", currencies));
+        final List<BitSet> accounts = ClientsCurrencyAccountsGenerator.generateClients(100, currencies, 1);
+        accounts.forEach(acc -> log.debug("{}", acc));
     }
 
 
     @Test
     public void shouldGenerateUsersLarge() {
 
-        final List<Integer> allowedCurrencies = IntStream.rangeClosed(1, 50).boxed().collect(Collectors.toList());
+        final Map<Integer, Double> allowedCurrencies = CurrenciesGenerator.randomCurrencies(50, 1, 1);
 
         final List<BitSet> accounts = ClientsCurrencyAccountsGenerator.generateClients(1_000_000, allowedCurrencies, 1);
 
         //accounts.forEach(currencies -> log.debug("{}", currencies));
 
-        allowedCurrencies.forEach(c1 -> {
+        allowedCurrencies.keySet().forEach(c1 -> {
             IntIntHashMap counters = new IntIntHashMap();
 
             accounts.stream().filter(a -> a.get(c1)).forEach(a -> {
@@ -55,7 +51,7 @@ public class ClientsCurrencyAccountsGeneratorTest {
     @Test
     public void shouldCreateClientsListForSymbol() {
 
-        final List<Integer> allowedCurrencies = IntStream.rangeClosed(1, 100).boxed().collect(Collectors.toList());
+        final Map<Integer, Double> allowedCurrencies = CurrenciesGenerator.randomCurrencies(100, 1, 1);
 
         final List<BitSet> accounts = ClientsCurrencyAccountsGenerator.generateClients(1000000, allowedCurrencies, 1);
 

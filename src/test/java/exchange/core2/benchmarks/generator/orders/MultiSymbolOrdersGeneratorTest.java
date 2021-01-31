@@ -3,14 +3,14 @@ package exchange.core2.benchmarks.generator.orders;
 import exchange.core2.benchmarks.generator.Constants;
 import exchange.core2.benchmarks.generator.GeneratorSymbolSpec;
 import exchange.core2.benchmarks.generator.clients.ClientsCurrencyAccountsGenerator;
+import exchange.core2.benchmarks.generator.currencies.CurrenciesGenerator;
 import exchange.core2.benchmarks.generator.symbols.SymbolsGenerator;
+import org.apache.commons.math3.util.Pair;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 public class MultiSymbolOrdersGeneratorTest {
 
@@ -21,19 +21,19 @@ public class MultiSymbolOrdersGeneratorTest {
     public void generateMultipleSymbols() {
 
 
-        final List<GeneratorSymbolSpec> specs = new ArrayList<>();
-        specs.add(Constants.SYMBOLSPEC_EUR_USD);
-        specs.add(Constants.SYMBOLSPECFEE_USD_JPY);
-        specs.add(Constants.SYMBOLSPEC_ETH_XBT);
-        specs.add(Constants.SYMBOLSPECFEE_XBT_LTC);
+        final List<Pair<GeneratorSymbolSpec, Double>> specs = new ArrayList<>();
+        specs.add(Pair.create(Constants.SYMBOLSPEC_EUR_USD, 0.25));
+        specs.add(Pair.create(Constants.SYMBOLSPECFEE_USD_JPY, 0.25));
+        specs.add(Pair.create(Constants.SYMBOLSPEC_ETH_XBT, 0.25));
+        specs.add(Pair.create(Constants.SYMBOLSPECFEE_XBT_LTC, 0.25));
 
-        final Set<Integer> currencies = new HashSet<>();
-        currencies.add(Constants.CURRENECY_USD);
-        currencies.add(Constants.CURRENECY_EUR);
-        currencies.add(Constants.CURRENECY_JPY);
-        currencies.add(Constants.CURRENECY_XBT);
-        currencies.add(Constants.CURRENECY_LTC);
-        currencies.add(Constants.CURRENECY_ETH);
+        final Map<Integer, Double> currencies = new HashMap<>();
+        currencies.put(Constants.CURRENECY_USD, 0.4);
+        currencies.put(Constants.CURRENECY_EUR, 0.2);
+        currencies.put(Constants.CURRENECY_JPY, 0.1);
+        currencies.put(Constants.CURRENECY_XBT, 0.1);
+        currencies.put(Constants.CURRENECY_LTC, 0.1);
+        currencies.put(Constants.CURRENECY_ETH, 0.1);
 
         List<BitSet> accounts = ClientsCurrencyAccountsGenerator.generateClients(1000, currencies, 1);
 
@@ -63,9 +63,12 @@ public class MultiSymbolOrdersGeneratorTest {
     @Test
     public void generateMultipleLarge() {
 
-        List<Integer> currencies = IntStream.rangeClosed(1, 20).boxed().collect(Collectors.toList());
+        Map<Integer, Double> currencies = CurrenciesGenerator.randomCurrencies(20, 600, 1);
 
-        List<GeneratorSymbolSpec> specs = SymbolsGenerator.generateRandomSymbols(
+        currencies.forEach((k, v) -> log.debug("{}: {}", k, v));
+
+
+        List<Pair<GeneratorSymbolSpec, Double>> specs = SymbolsGenerator.generateRandomSymbols(
                 20_000,
                 currencies,
                 EnumSet.allOf(GeneratorSymbolSpec.SymbolType.class),
