@@ -15,7 +15,7 @@
  */
 package exchange.core2.benchmarks.generator.orders;
 
-import exchange.core2.orderbook.util.BufferWriter;
+import exchange.core2.orderbook.util.BufferReader;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -25,8 +25,8 @@ public class MultiSymbolGenResult {
     private final Map<Integer, Integer> orderBookHashes;
 
     // completable future (as merging takes some time)
-    private final CompletableFuture<BufferWriter> commandsFill;
-    private final CompletableFuture<BufferWriter> commandsBenchmark;
+    private final CompletableFuture<BufferReader> commandsFill;
+    private final CompletableFuture<BufferReader> commandsBenchmark;
 
     private final int benchmarkCommandsSize;
 
@@ -34,11 +34,11 @@ public class MultiSymbolGenResult {
         return orderBookHashes;
     }
 
-    public CompletableFuture<BufferWriter> getCommandsFill() {
+    public CompletableFuture<BufferReader> getCommandsFill() {
         return commandsFill;
     }
 
-    public CompletableFuture<BufferWriter> getCommandsBenchmark() {
+    public CompletableFuture<BufferReader> getCommandsBenchmark() {
         return commandsBenchmark;
     }
 
@@ -47,8 +47,8 @@ public class MultiSymbolGenResult {
     }
 
     public MultiSymbolGenResult(Map<Integer, Integer> orderBookHashes,
-                                CompletableFuture<BufferWriter> commandsFill,
-                                CompletableFuture<BufferWriter> commandsBenchmark,
+                                CompletableFuture<BufferReader> commandsFill,
+                                CompletableFuture<BufferReader> commandsBenchmark,
                                 int benchmarkCommandsSize) {
 
         this.orderBookHashes = orderBookHashes;

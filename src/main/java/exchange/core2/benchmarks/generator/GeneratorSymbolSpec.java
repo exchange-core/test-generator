@@ -17,6 +17,8 @@ package exchange.core2.benchmarks.generator;
 
 import exchange.core2.orderbook.ISymbolSpecification;
 
+import java.util.Objects;
+
 public final class GeneratorSymbolSpec implements ISymbolSpecification {
 
     private final int symbolId;
@@ -26,7 +28,7 @@ public final class GeneratorSymbolSpec implements ISymbolSpecification {
     private final int baseCurrency;  // base currency // TODO baseAsset?
     private final int quoteCurrency; // quote/counter currency (OR futures contract currency)
     private final long baseScaleK;   // base currency amount multiplier (lot size in base currency units)
-    private final long quoteScaleK;  // quote currency amount multiplier (step size in quote currency units)
+    private final long quoteScaleK;  // quote currency amount multiplier (price step in quote currency units)
 
     // fees per lot in quote? currency units
     private final long takerFee; // TODO check invariant: taker fee is not less than maker fee
@@ -130,7 +132,29 @@ public final class GeneratorSymbolSpec implements ISymbolSpecification {
 
     @Override
     public int stateHash() {
-        return 0; // TODO implement
+        return hashCode();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        GeneratorSymbolSpec that = (GeneratorSymbolSpec) o;
+        return symbolId == that.symbolId &&
+                baseCurrency == that.baseCurrency &&
+                quoteCurrency == that.quoteCurrency &&
+                baseScaleK == that.baseScaleK &&
+                quoteScaleK == that.quoteScaleK &&
+                takerFee == that.takerFee &&
+                makerFee == that.makerFee &&
+                marginBuy == that.marginBuy &&
+                marginSell == that.marginSell &&
+                symbolType == that.symbolType;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(symbolId, symbolType, baseCurrency, quoteCurrency, baseScaleK, quoteScaleK, takerFee, makerFee, marginBuy, marginSell);
     }
 
     public enum SymbolType {
@@ -138,4 +162,19 @@ public final class GeneratorSymbolSpec implements ISymbolSpecification {
         FUTURES_CONTRACT
     }
 
+    @Override
+    public String toString() {
+        return "GeneratorSymbolSpec{" +
+                "symbolId=" + symbolId +
+                ", symbolType=" + symbolType +
+                ", baseCurrency=" + baseCurrency +
+                ", quoteCurrency=" + quoteCurrency +
+                ", baseScaleK=" + baseScaleK +
+                ", quoteScaleK=" + quoteScaleK +
+                ", takerFee=" + takerFee +
+                ", makerFee=" + makerFee +
+                ", marginBuy=" + marginBuy +
+                ", marginSell=" + marginSell +
+                '}';
+    }
 }

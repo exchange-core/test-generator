@@ -23,6 +23,7 @@ public final class Constants {
 
 
     public static final int SYMBOL_MARGIN = 5991;
+    public static final int SYMBOL_MARGIN_FEE = 5993;
     public static final int SYMBOL_EXCHANGE = 9269;
     public static final int SYMBOL_EXCHANGE_FEE = 9340;
 
@@ -62,18 +63,18 @@ public final class Constants {
     public static final int CURRENECY_XAU = 959;
     public static final int CURRENECY_ZAR = 710;
 
-    public static final int CURRENECY_XBT = 3762; // satoshi, 1E-8
-    public static final int CURRENECY_ETH = 3928; // szabo, 1E-6
-    public static final int CURRENECY_LTC = 4141; // litoshi, 1E-8
-    public static final int CURRENECY_XDG = 4142;
-    public static final int CURRENECY_GRC = 4143;
-    public static final int CURRENECY_XPM = 4144;
-    public static final int CURRENECY_XRP = 4145;
-    public static final int CURRENECY_DASH = 4146;
-    public static final int CURRENECY_XMR = 4147;
-    public static final int CURRENECY_XLM = 4148;
-    public static final int CURRENECY_ETC = 4149;
-    public static final int CURRENECY_ZEC = 4150;
+    public static final int CURRENECY_XBT = 1001; // satoshi, 1E-8
+    public static final int CURRENECY_ETH = 1002; // szabo, 1E-6
+    public static final int CURRENECY_LTC = 1003; // litoshi, 1E-8
+    public static final int CURRENECY_XDG = 1004;
+    public static final int CURRENECY_GRC = 1005;
+    public static final int CURRENECY_XPM = 1006;
+    public static final int CURRENECY_XRP = 1007;
+    public static final int CURRENECY_DASH = 1008;
+    public static final int CURRENECY_XMR = 1009;
+    public static final int CURRENECY_XLM = 1010;
+    public static final int CURRENECY_ETC = 1011;
+    public static final int CURRENECY_ZEC = 1012;
 
 
     public static final Set<Integer> CURRENCIES_FUTURES = Sets.newHashSet(
@@ -127,56 +128,53 @@ public final class Constants {
             CURRENECY_XLM,
             CURRENECY_ETC,
             CURRENECY_ZEC);
-//
-//    public static final CoreSymbolSpecification SYMBOLSPEC_EUR_USD = CoreSymbolSpecification.builder()
-//            .symbolId(SYMBOL_MARGIN)
-//            .type(SymbolType.FUTURES_CONTRACT)
-//            .baseCurrency(CURRENECY_EUR)
-//            .quoteCurrency(CURRENECY_USD)
-//            .baseScaleK(1)
-//            .quoteScaleK(1)
-//            .marginBuy(2200)
-//            .marginSell(3210)
-//            .takerFee(0)
-//            .makerFee(0)
-//            .build();
-//
-//    public static final CoreSymbolSpecification SYMBOLSPECFEE_USD_JPY = CoreSymbolSpecification.builder()
-//            .symbolId(SYMBOL_MARGIN)
-//            .type(SymbolType.FUTURES_CONTRACT)
-//            .baseCurrency(CURRENECY_USD)
-//            .quoteCurrency(CURRENECY_JPY)
-//            .baseScaleK(1_000_00) // 1K USD "micro" lot
-//            .quoteScaleK(10) // 10 JPY step
-//            .marginBuy(5_000) // effective leverage ~21
-//            .marginSell(6_000) // effective leverage ~18
-//            .takerFee(3)
-//            .makerFee(2)
-//            .build();
-//
-//
-//    public static final CoreSymbolSpecification SYMBOLSPEC_ETH_XBT = CoreSymbolSpecification.builder()
-//            .symbolId(SYMBOL_EXCHANGE)
-//            .type(SymbolType.CURRENCY_EXCHANGE_PAIR)
-//            .baseCurrency(CURRENECY_ETH)    // base = szabo
-//            .quoteCurrency(CURRENECY_XBT)   // quote = satoshi
-//            .baseScaleK(100_000)            // 1 lot = 100K szabo (0.1 ETH)
-//            .quoteScaleK(10)                // 1 step = 10 satoshi
-//            .takerFee(0)
-//            .makerFee(0)
-//            .build();
-//
+
+    public static final GeneratorSymbolSpec SYMBOLSPEC_EUR_USD = new GeneratorSymbolSpec(
+            SYMBOL_MARGIN,
+            GeneratorSymbolSpec.SymbolType.FUTURES_CONTRACT,
+            CURRENECY_EUR,
+            CURRENECY_USD,
+            1,
+            1,
+            0,
+            0,
+            2200,
+            3210);
+
+
+    public static final GeneratorSymbolSpec SYMBOLSPECFEE_USD_JPY = new GeneratorSymbolSpec(
+            SYMBOL_MARGIN_FEE,
+            GeneratorSymbolSpec.SymbolType.FUTURES_CONTRACT,
+            CURRENECY_USD,
+            CURRENECY_JPY,
+            1_000_00,   // 1K USD "micro" lot
+            10,         // 10 JPY step
+            3,
+            2,
+            5_000,      // effective leverage ~21
+            6_000);     // effective leverage ~18
+
+
+    public static final GeneratorSymbolSpec SYMBOLSPEC_ETH_XBT = new GeneratorSymbolSpec(
+            SYMBOL_EXCHANGE,
+            GeneratorSymbolSpec.SymbolType.CURRENCY_EXCHANGE_PAIR,
+            CURRENECY_ETH,      // base = szabo
+            CURRENECY_XBT,      // quote = satoshi
+            100_000, // 1 lot = 100K szabo (0.1 ETH)
+            10,     // 1 step = 10 satoshi
+            0,
+            0);
 
     // symbol with fees
     public static final GeneratorSymbolSpec SYMBOLSPECFEE_XBT_LTC = new GeneratorSymbolSpec(
             SYMBOL_EXCHANGE_FEE,
             GeneratorSymbolSpec.SymbolType.CURRENCY_EXCHANGE_PAIR,
-            CURRENECY_XBT,    // base = satoshi
-            CURRENECY_LTC,   // quote = litoshi
-            1_000_000,          // 1 lot = 1M satoshi (0.01 BTC)
-            10_000,            // 1 step = 10K litoshi
-            1900,                 // taker fee 1900 litoshi per 1 lot
-            700);                  // maker fee 700 litoshi per 1 lot
+            CURRENECY_XBT,          // base = satoshi
+            CURRENECY_LTC,          // quote = litoshi
+            1_000_000,   // 1 lot = 1M satoshi (0.01 BTC)
+            10_000,     // 1 step = 10K litoshi
+            1900,          // taker fee 1900 litoshi per 1 lot
+            700);         // maker fee 700 litoshi per 1 lot
 
     public static int getCurrency(String currency) {
 

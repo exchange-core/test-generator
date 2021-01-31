@@ -34,7 +34,7 @@ public final class OrdersGeneratorConfig {
     public enum PreFillMode {
 
         ORDERS_NUMBER(OrdersGeneratorConfig::getTargetOrderBookOrdersTotal),
-        ORDERS_NUMBER_PLUS_QUARTER(config -> config.targetOrderBookOrdersTotal * 5 / 4); // used for snapshot tests to let some margin positions open
+        ORDERS_NUMBER_PLUS_QUARTER(config -> config.targetOrderBookOrdersTotal * 5 / 4); // for snapshot tests to let some margin positions open
 
         public Function<OrdersGeneratorConfig, Integer> getCalculateReadySeqFunc() {
             return calculateReadySeqFunc;

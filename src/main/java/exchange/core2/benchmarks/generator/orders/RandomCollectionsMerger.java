@@ -20,9 +20,10 @@ import exchange.core2.orderbook.util.BufferReader;
 import exchange.core2.orderbook.util.BufferWriter;
 import org.agrona.ExpandableArrayBuffer;
 import org.apache.commons.math3.distribution.EnumeratedDistribution;
-import org.apache.commons.math3.random.JDKRandomGenerator;
 import org.apache.commons.math3.random.RandomGenerator;
 import org.apache.commons.math3.util.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
@@ -30,6 +31,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class RandomCollectionsMerger {
+
+    private static final Logger log = LoggerFactory.getLogger(RandomCollectionsMerger.class);
 
 
     public static BufferWriter mergeCommands(final Map<Integer, GenResult> genResults,
@@ -50,12 +53,14 @@ public class RandomCollectionsMerger {
 
         while (!weightPairs.isEmpty()) {
 
+            // weightPairs.forEach(pair->log.debug("wp={}", pair));
+
             // rebuild distribution
             final EnumeratedDistribution<SourceRecord> ed = new EnumeratedDistribution<>(rand, weightPairs);
 
             // take random elements until face too many misses
             int missCounter = 0;
-            while (missCounter++ < 3) {
+            while (missCounter < 3) {
 
                 final SourceRecord sourceRecord = ed.sample();
                 BufferReader reader = sourceRecord.bufferReader;
@@ -66,8 +71,9 @@ public class RandomCollectionsMerger {
                     bufferWriter.appendByte(cmdCode);
                     bufferWriter.appendInt(sourceRecord.symbolId);
                     reader.readBytesToWriter(bufferWriter, commandSize(cmdCode));
-                } else {
                     missCounter = 0;
+                } else {
+                    missCounter++;
                 }
             }
 
@@ -77,15 +83,13 @@ public class RandomCollectionsMerger {
                     .map(p -> Pair.create(p.getFirst(), (double) p.getFirst().bufferReader.getRemainingSize()))
                     .collect(Collectors.toList());
 
-//            log.debug("rebuild size {}", weightPairs.size());
+            // log.debug("rebuild size {}", weightPairs.size());
         }
 
         return bufferWriter;
     }
 
     private static int commandSize(final byte cmdCode) {
-
-        // TODO read symbol code
 
         switch (cmdCode) {
             case IOrderBook.COMMAND_PLACE_ORDER:

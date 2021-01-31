@@ -20,9 +20,10 @@ import exchange.core2.benchmarks.generator.clients.ClientsCurrencyAccountsGenera
 import exchange.core2.benchmarks.generator.util.AsyncProgressLogger;
 import exchange.core2.benchmarks.generator.util.ExecutionTime;
 import exchange.core2.benchmarks.generator.util.RandomUtils;
-import exchange.core2.orderbook.util.BufferWriter;
+import exchange.core2.orderbook.util.BufferReader;
 import org.apache.commons.math3.random.JDKRandomGenerator;
 import org.apache.commons.math3.random.RandomGenerator;
+import org.apache.commons.math3.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,10 +68,25 @@ public final class MultiSymbolOrdersGenerator {
                     message -> log.debug("Generating commands progress: {} ...", message),
                     5);
 
+//            final Map<Pair<Integer, Integer>, Double> currencyWeights = new HashMap<>();
+//            for (int i = 0; i < coreSymbolSpecifications.size(); i++) {
+//                final double w = distribution[i];
+//                final GeneratorSymbolSpec spec = coreSymbolSpecifications.get(i);
+//                currencyWeights.merge(
+//                        Pair.create(spec.getBaseCurrency(), spec.getQuoteCurrency()),
+//                        w,
+//                        Double::sum);
+//            }
+//
+//            log.debug("weitghs: {}", currencyWeights.values().stream().mapToDouble(a -> a).summaryStatistics());
+
+            //currencyWeights.forEach((c, w) -> log.debug("cur:{} w:{}", c, w));
+
+
             for (int i = coreSymbolSpecifications.size() - 1; i >= 0; i--) {
                 final GeneratorSymbolSpec spec = coreSymbolSpecifications.get(i);
-                final int orderBookSizeTarget = (int) (targetOrderBookOrdersTotal * distribution[i] + 0.5);
-                final int commandsNum = (i != 0) ? (int) (totalTransactionsNumber * distribution[i] + 0.5) : Math.max(quotaLeft, 1);
+                final int orderBookSizeTarget = (int) Math.round(targetOrderBookOrdersTotal * distribution[i]);
+                final int commandsNum = (i != 0) ? (int) Math.round(totalTransactionsNumber * distribution[i]) : Math.max(quotaLeft, 1);
 
                 quotaLeft -= commandsNum;
 
@@ -78,10 +94,23 @@ public final class MultiSymbolOrdersGenerator {
                 final int orderIdCounter = orderIdShift;
                 orderIdShift += (commandsNum + orderBookSizeTarget);
 
-//                log.debug("{}. Generating symbol {} : commands={} orderBookSizeTarget={} (quotaLeft={})", i, spec.symbolId, commandsNum, orderBookSizeTarget, quotaLeft);
+                //log.debug("{}. Generating symbol {} : commands={} orderBookSizeTarget={} (quotaLeft={})", i, spec.getSymbolId(), commandsNum, orderBookSizeTarget, quotaLeft);
+
+                //log.debug("{}. {} b={} q={}", i, spec.getSymbolId(), spec.getBaseCurrency(), spec.getQuoteCurrency());
+
+
                 futures.put(spec.getSymbolId(), CompletableFuture.supplyAsync(() -> {
 
-                    final int[] uidsAvailableForSymbol = ClientsCurrencyAccountsGenerator.createClientsListForSymbol(usersAccounts, spec, commandsNum);
+                    // only some clients can trade specific symbols
+                    final int[] uidsAvailableForSymbol = ClientsCurrencyAccountsGenerator.createClientsListForSymbol(
+                            usersAccounts,
+                            spec,
+                            commandsNum,
+                            randomSeed);
+
+                    if (uidsAvailableForSymbol.length < 1) {
+                        throw new IllegalArgumentException();
+                    }
 
                     return SingleBookOrderGenerator.generateCommands(
                             commandsNum,
@@ -110,14 +139,15 @@ public final class MultiSymbolOrdersGenerator {
                 genResultsMap.values().stream().mapToInt(GenResult::getNumCommandsFill).sum(),
                 genResultsMap.size());
 
-        final CompletableFuture<BufferWriter> mergedCommandsFill = CompletableFuture.supplyAsync(
+        final CompletableFuture<BufferReader> mergedCommandsFill = CompletableFuture.supplyAsync(
                 () -> RandomCollectionsMerger.mergeCommands(
                         genResultsMap,
                         GenResult::getCommandsFill,
-                        new JDKRandomGenerator(randomSeed)));
+                        new JDKRandomGenerator(randomSeed))
+                        .toReader());
 
         // initiate merging process for benchmark commands part only when pre-fill commands are completed)
-        final CompletableFuture<BufferWriter> mergedCommandsBenchmark = mergedCommandsFill.thenApplyAsync(ignore -> {
+        final CompletableFuture<BufferReader> mergedCommandsBenchmark = mergedCommandsFill.thenApplyAsync(ignore -> {
             log.debug("Merging {} BENCHMARK commands for {} symbols...",
                     genResultsMap.values().stream().mapToInt(GenResult::getNumCommandsBenchmark).sum(),
                     genResultsMap.size());
@@ -125,7 +155,8 @@ public final class MultiSymbolOrdersGenerator {
             return RandomCollectionsMerger.mergeCommands(
                     genResultsMap,
                     GenResult::getCommandsBenchmark,
-                    new JDKRandomGenerator(randomSeed));
+                    new JDKRandomGenerator(randomSeed))
+                    .toReader();
         });
 
 
