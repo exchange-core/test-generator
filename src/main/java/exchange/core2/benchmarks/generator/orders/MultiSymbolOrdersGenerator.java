@@ -87,7 +87,7 @@ public final class MultiSymbolOrdersGenerator {
 
                 final GeneratorSymbolSpec spec = wspec.getFirst();
 
-                log.debug("{}. Generating symbol {} : commands={} orderBookSizeTarget={} (quotaLeft={})", i, spec.getSymbolId(), commandsNum, orderBookSizeTarget, quotaLeft);
+                //log.debug("{}. Generating symbol {} : commands={} orderBookSizeTarget={} (quotaLeft={})", i, spec.getSymbolId(), commandsNum, orderBookSizeTarget, quotaLeft);
 
                 //log.debug("{}. {} b={} q={}", i, spec.getSymbolId(), spec.getBaseCurrency(), spec.getQuoteCurrency());
 

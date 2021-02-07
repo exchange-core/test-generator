@@ -21,7 +21,7 @@
 
     <groupId>exchange.core2</groupId>
     <artifactId>test-generator</artifactId>
-    <version>0.7.1-SNAPSHOT</version>
+    <version>0.7.4-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>${project.groupId}:${project.artifactId}</name>
@@ -73,7 +73,7 @@
         <dependency>
             <groupId>exchange.core2</groupId>
             <artifactId>orderbook</artifactId>
-            <version>0.7.16-SNAPSHOT</version>
+            <version>0.7.22-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
 

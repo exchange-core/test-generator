@@ -70,7 +70,7 @@ public class RandomCollectionsMerger {
                     final byte cmdCode = reader.readByte();
                     bufferWriter.appendByte(cmdCode);
                     bufferWriter.appendInt(sourceRecord.symbolId);
-                    reader.readBytesToWriter(bufferWriter, commandSize(cmdCode));
+                    reader.readBytesToWriter(bufferWriter, IOrderBook.fixedCommandSize(cmdCode));
                     missCounter = 0;
                 } else {
                     missCounter++;
@@ -87,26 +87,6 @@ public class RandomCollectionsMerger {
         }
 
         return bufferWriter;
-    }
-
-    private static int commandSize(final byte cmdCode) {
-
-        switch (cmdCode) {
-            case IOrderBook.COMMAND_PLACE_ORDER:
-                return IOrderBook.PLACE_OFFSET_END;
-
-            case IOrderBook.COMMAND_CANCEL_ORDER:
-                return IOrderBook.CANCEL_OFFSET_END;
-
-            case IOrderBook.COMMAND_MOVE_ORDER:
-                return IOrderBook.MOVE_OFFSET_END;
-
-            case IOrderBook.COMMAND_REDUCE_ORDER:
-                return IOrderBook.REDUCE_OFFSET_END;
-
-            default:
-                throw new IllegalStateException("Unexpected command code: " + cmdCode);
-        }
     }
 
     private final static class SourceRecord {

@@ -65,7 +65,7 @@ public class MultiSymbolOrdersGeneratorTest {
 
         Map<Integer, Double> currencies = CurrenciesGenerator.randomCurrencies(20, 600, 1);
 
-        currencies.forEach((k, v) -> log.debug("{}: {}", k, v));
+//        currencies.forEach((k, v) -> log.debug("{}: {}", k, v));
 
 
         List<Pair<GeneratorSymbolSpec, Double>> specs = SymbolsGenerator.generateRandomSymbols(

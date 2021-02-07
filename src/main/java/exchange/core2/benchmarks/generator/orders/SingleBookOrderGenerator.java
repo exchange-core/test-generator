@@ -220,7 +220,7 @@ public class SingleBookOrderGenerator {
 
         commandResponse.getTrades().forEach(ev -> {
             final int makerOrderId = (int) ev.getMakerOrderId();
-            final int tradeVolume = (int) -ev.getTradeVolume();
+            final int tradeVolume = (int) -ev.getTradeSize();
 
             if (ev.isMakerOrderCompleted()) {
                 session.orderUids.remove(makerOrderId);
@@ -248,11 +248,10 @@ public class SingleBookOrderGenerator {
             } else if (tradePrice >= session.maxPrice) {
                 session.priceDirection = -1;
             }
-
         });
 
         commandResponse.getReduceEventOpt().ifPresent(ev -> {
-            int takerRemaining = session.orderSizes.addToValue(orderId, (int) ev.getReducedVolume());
+            int takerRemaining = session.orderSizes.addToValue(orderId, (int) ev.getReducedSize());
             if (takerRemaining < 0) {
                 throw new IllegalStateException("Incorrect filled size for order " + orderId);
             }

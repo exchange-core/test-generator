@@ -30,7 +30,7 @@ public class SymbolsGeneratorTest {
                 1000,
                 1);
 
-        specs.forEach(spec -> log.debug("{}", spec));
+        // specs.forEach(spec -> log.debug("{}", spec));
 
     }
 }
