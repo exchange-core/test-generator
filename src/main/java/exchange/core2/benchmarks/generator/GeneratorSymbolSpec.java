@@ -19,6 +19,7 @@ import exchange.core2.orderbook.ISymbolSpecification;
 
 import java.util.Objects;
 
+// TODO Use generic interface and factory so that generator can instatiate symbols of required type (to reduce GC pressure)
 public final class GeneratorSymbolSpec implements ISymbolSpecification {
 
     private final int symbolId;

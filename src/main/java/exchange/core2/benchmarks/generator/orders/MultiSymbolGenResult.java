@@ -25,6 +25,7 @@ public class MultiSymbolGenResult {
     private final Map<Integer, Integer> orderBookHashes;
 
     // completable future (as merging takes some time)
+    // TODO use stateless object (Buffer with size - to avoid state)
     private final CompletableFuture<BufferReader> commandsFill;
     private final CompletableFuture<BufferReader> commandsBenchmark;
 

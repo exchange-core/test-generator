@@ -42,14 +42,13 @@ public final class MultiSymbolOrdersGenerator {
     // TODO allow limiting number of opened positions (currently it just grows)
     // TODO use longs for prices (optionally)
 
-    public static MultiSymbolGenResult generateMultipleSymbols(final OrdersGeneratorConfig config) {
-
-        final List<Pair<GeneratorSymbolSpec, Double>> symbolSpecs = config.getCoreSymbolSpecifications();
-        final int totalTransactionsNumber = config.getTotalTransactionsNumber();
-        final List<BitSet> usersAccounts = config.getUsersAccounts();
-        final int targetOrderBookOrdersTotal = config.getTargetOrderBookOrdersTotal();
-
-        final int randomSeed = config.getSeed();
+    public static MultiSymbolGenResult generateMultipleSymbols(
+            final List<Pair<GeneratorSymbolSpec, Double>> symbolSpecs,
+            final int totalTransactionsNumber,
+            final List<BitSet> usersAccounts,
+            final int targetOrderBookOrdersTotal,
+            final int randomSeed,
+            final boolean avalancheIOC) {
 
         final Map<Integer, GenResult> genResultsMap = new HashMap<>();
 
@@ -111,7 +110,7 @@ public final class MultiSymbolOrdersGenerator {
                             idx -> uidsAvailableForSymbol[idx],
                             spec,
                             false,
-                            config.isAvalancheIOC(),
+                            avalancheIOC,
                             sharedProgressLogger,
                             orderIdCounter,
                             randomSeed);

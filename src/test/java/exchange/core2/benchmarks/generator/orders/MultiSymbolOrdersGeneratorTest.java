@@ -39,17 +39,13 @@ public class MultiSymbolOrdersGeneratorTest {
 
         //accounts.forEach(s -> log.debug("{}", s));
 
-        OrdersGeneratorConfig config = new OrdersGeneratorConfig(
+        MultiSymbolGenResult multiSymbolGenResult = MultiSymbolOrdersGenerator.generateMultipleSymbols(
                 specs,
                 100000,
                 accounts,
                 1000,
                 1,
-                false,
-                OrdersGeneratorConfig.PreFillMode.ORDERS_NUMBER);
-
-
-        MultiSymbolGenResult multiSymbolGenResult = MultiSymbolOrdersGenerator.generateMultipleSymbols(config);
+                false);
 
         log.debug("getBenchmarkCommandsSize={}", multiSymbolGenResult.getBenchmarkCommandsSize());
         log.debug("CommandsFill length={}", multiSymbolGenResult.getCommandsFill().join().getRemainingSize());
@@ -82,17 +78,13 @@ public class MultiSymbolOrdersGeneratorTest {
 
         //accounts.forEach(s -> log.debug("{}", s));
 
-        OrdersGeneratorConfig config = new OrdersGeneratorConfig(
+        MultiSymbolGenResult multiSymbolGenResult = MultiSymbolOrdersGenerator.generateMultipleSymbols(
                 specs,
                 1_000_000,
                 accounts,
                 100_000,
                 1,
-                false,
-                OrdersGeneratorConfig.PreFillMode.ORDERS_NUMBER);
-
-
-        MultiSymbolGenResult multiSymbolGenResult = MultiSymbolOrdersGenerator.generateMultipleSymbols(config);
+                false);
 
         log.debug("getBenchmarkCommandsSize={}", multiSymbolGenResult.getBenchmarkCommandsSize());
         log.debug("CommandsFill length={}", multiSymbolGenResult.getCommandsFill().join().getRemainingSize());
