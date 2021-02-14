@@ -42,8 +42,9 @@ public final class ClientsCurrencyAccountsGenerator {
      * <p>
      * TODO use currencies indexes everywhere (as more friendly to bitsets)
      *
-     * @param accountsToCreate
-     * @param currenciesWeights
+     * @param accountsToCreate  - number account to create (not clients)
+     * @param currenciesWeights - weights of currencies (required for optimal distribution of accounts)
+     * @param seed              - random seed
      * @return n + 1 uid records with allowed currencies
      */
     public static List<BitSet> generateClients(final int accountsToCreate,

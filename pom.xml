@@ -73,7 +73,7 @@
         <dependency>
             <groupId>exchange.core2</groupId>
             <artifactId>orderbook</artifactId>
-            <version>0.7.22-SNAPSHOT</version>
+            <version>0.7.24-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
 
