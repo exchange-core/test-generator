@@ -2,6 +2,7 @@ package exchange.core2.benchmarks.generator.clients;
 
 import exchange.core2.benchmarks.generator.GeneratorSymbolSpec;
 import exchange.core2.benchmarks.generator.currencies.CurrenciesGenerator;
+import org.agrona.collections.Hashing;
 import org.eclipse.collections.impl.map.mutable.primitive.IntIntHashMap;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -88,6 +89,39 @@ public class ClientsCurrencyAccountsGeneratorTest {
         log.debug("stat: {}", stat);
 
 
+    }
+
+    @Test
+    public void shouldGenerateAccountsForTransfers() {
+        final Map<Integer, Double> allowedCurrencies = CurrenciesGenerator.randomCurrencies(31, 1, 1);
+
+        ClientsCurrencyAccountsGenerator.generateAccountsForTransfers(
+                100,
+                allowedCurrencies,
+                ClientsCurrencyAccountsGeneratorTest::mapToAccount,
+                10,
+                4143962);
+
+    }
+
+    private static long mapToAccount(long clientId, int currencyId, int accountNum) {
+
+        if (clientId > 0x7_FFFF_FFFFL) {
+            throw new IllegalArgumentException("clientId is too big");
+        }
+
+        if (currencyId > 0xFFFF) {
+            throw new IllegalArgumentException("currencyId is too big");
+        }
+
+        if (accountNum > 0xFF) {
+            throw new IllegalArgumentException("accountNum is too big");
+        }
+
+        final long accountRaw = (clientId << 28) | ((long) currencyId << 12) | ((long) accountNum << 4);
+        final int checkDigit = Hashing.hash(accountRaw) & 0xF;
+        log.debug("{} {} {} -> {} + CD={} -> {}", clientId, currencyId, accountNum, accountRaw, checkDigit, accountRaw | checkDigit);
+        return accountRaw | checkDigit;
     }
 
 }

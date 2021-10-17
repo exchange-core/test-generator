@@ -177,5 +177,53 @@ public final class ClientsCurrencyAccountsGenerator {
         return uids.stream().mapToInt(x -> x).toArray();
     }
 
+    public interface AccountEncoder {
+        long encode(long clientId, int currencyId, int accountNum);
+    }
+
+
+    public static long[] generateAccountsForTransfers(final int numAccountsToCreate,
+                                                      final Map<Integer, Double> currenciesWeights,
+                                                      final AccountEncoder accountEncoder,
+                                                      int maxAccountsPerClient,
+                                                      int seed) {
+
+        log.debug("Generating clients with {} accounts ({} currencies)...", numAccountsToCreate, currenciesWeights.size());
+
+        final long[] accounts = new long[numAccountsToCreate];
+
+        final ExecutionTime executionTime = new ExecutionTime();
+
+        final RandomGenerator rng = new JDKRandomGenerator(seed);
+
+        final RealDistribution accountsNumDistribution = new ParetoDistribution(new JDKRandomGenerator(0), 1, 1.5);
+
+        // prepare distribution for currencies
+        final List<Pair<Integer, Double>> currencyWeightPairs = currenciesWeights.entrySet().stream()
+                .map(e -> Pair.create(e.getKey(), e.getValue()))
+                .collect(Collectors.toList());
+
+        final EnumeratedDistribution<Integer> currenciesDistribution = new EnumeratedDistribution<>(rng, currencyWeightPairs);
+
+        int clientCounter = 0;
+        int accountCounter = 0;
+        int clientAccountLeft = 0;
+        for (int i = 0; i < numAccountsToCreate; i++) {
+            if (clientAccountLeft == 0) {
+                clientAccountLeft = Math.min(1 + (int) accountsNumDistribution.sample(), maxAccountsPerClient);
+                clientCounter++;
+                accountCounter = 0;
+            }
+            final int currencyCode = currenciesDistribution.sample();
+            accounts[i] = accountEncoder.encode(clientCounter, currencyCode, accountCounter);
+            accountCounter++;
+            clientAccountLeft--;
+        }
+
+        log.debug("Generated {} clients with {} accounts up to {} different currencies in {}",
+                clientCounter, numAccountsToCreate, currenciesWeights.size(), executionTime.getTimeFormatted());
+
+        return accounts;
+    }
 
 }
